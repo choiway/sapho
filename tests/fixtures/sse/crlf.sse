@@ -1,0 +1,12 @@
+event: response.created
+data: {"type":"response.created","response":{"id":"resp_fixture_crlf"},"sequence_number":0}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","output_index":0,"delta":"hello ","sequence_number":1}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","output_index":0,"delta":"world","sequence_number":2}
+
+event: response.completed
+data: {"type":"response.completed","response":{"status":"completed","output":[],"usage":{"input_tokens":10,"output_tokens":2}},"sequence_number":3}
+

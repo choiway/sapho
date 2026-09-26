@@ -1,0 +1,5 @@
+.tests/
+.local-fixtures/
+tests/fixtures/**/*.tmp
+*.swp
+*.swo

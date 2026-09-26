@@ -1,0 +1,2 @@
+# Preserve intentional CRLF fixture bytes and do not flag CR as whitespace.
+tests/fixtures/sse/crlf.sse -text whitespace=cr-at-eol
