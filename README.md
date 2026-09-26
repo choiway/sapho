@@ -2,21 +2,29 @@
 
 Read code beside your editor: a reading-first Neovim plugin for asking questions about the current source buffer with a Codex CLI ChatGPT login. Sapho is an independent project; it uses an unofficial ChatGPT Codex backend endpoint, which may change without notice. It does not support API-key mode or refresh tokens itself.
 
-## Requirements
+## Installation
 
-- Neovim 0.10+ and `curl` 7.76+ (for `--fail-with-body`)
-- Optional: [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) for the `:SaphoLocations` picker only
-- A ChatGPT-mode Codex CLI login: run `codex login` before submitting a request. If the token expires, refresh it with Codex; Sapho only reads `$CODEX_HOME/auth.json` (or `~/.codex/auth.json`).
+Requires Neovim 0.10+, `curl` 7.76+ and a ChatGPT-mode [Codex CLI](https://github.com/openai/codex) login. [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) is optional, used only by `:SaphoLocations`.
 
-Add this repository using your plugin manager, then optionally configure a mapping:
+Install with **lazy.nvim**:
 
 ```lua
-require('sapho').setup({
-  keymap = '<leader>sa', -- optional; normal and visual modes
-})
+{
+  'choiway/sapho',
+  config = function()
+    require('sapho').setup({ keymap = '<leader>sa' }) -- optional mapping in Normal and Visual modes
+  end,
+}
 ```
 
-There is no default keymap. Run `:checkhealth sapho` to check local dependencies and login status. Sapho does not persist conversations to disk.
+Or install without a plugin manager:
+
+```sh
+mkdir -p ~/.local/share/nvim/site/pack/plugins/start
+git clone https://github.com/choiway/sapho.git ~/.local/share/nvim/site/pack/plugins/start/sapho
+```
+
+Then run `codex login` in your shell. In Neovim, run `:checkhealth sapho` and open a source buffer with `:Sapho`. There is **no default keymap**; manual installs can add `require('sapho').setup({ keymap = '<leader>sa' })` to `init.lua` if desired. Sapho reads `$CODEX_HOME/auth.json` (or `~/.codex/auth.json`) and does not persist conversations to disk. If the token expires, refresh it with Codex.
 
 ## Usage
 
