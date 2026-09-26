@@ -1,13 +1,11 @@
-# Publishing Sapho on GitHub
+# GitHub publication precautions
 
-The local `master` history contains live backend SSE responses in older commits (including encrypted reasoning and response metadata). Replacing the fixtures in a later commit does **not** remove those objects. **Never push `master`, `--all`, `--mirror`, or old tags to a public remote.**
+The published `main` branch began at a clean root commit (`84abca2`), with synthetic SSE fixtures. It does **not** descend from the old local `master` branch. The old `master` history contains live backend responses, including encrypted reasoning and response metadata; replacing the fixtures in a later commit did not remove those objects.
 
-The separate `public` branch is a fresh root commit containing only the reviewed, synthetic-fixture tree. It does not contain or descend from the local `master` commits. The old objects still exist locally; pushing *only* `public` does not send them to GitHub.
+**Never push the local `master` branch, old tags, `--all` or `--mirror` to a public remote.** Push only `main` (`git push origin main`). A fresh clone of the GitHub repository does not include the old local history. If older commits were already shared elsewhere, deleting a local branch cannot revoke downloaded copies.
 
-Before publishing:
+Before future releases:
 
-1. Review the files and author information you intend to make public. Confirm the MIT copyright notice (2026 Wayne Choi) is correct. Run `make test` without logging into Codex. Never commit `.local-fixtures/`, `auth.json`, or real streams.
-2. Verify `git rev-list --count public` is `1`, and `git ls-tree -r --name-only public` contains only intended files. Do not push any other branch or tag.
-3. Create an **empty** GitHub repository (do not add a generated README or license). Add its URL as `origin` locally, then publish just this branch with `git push -u origin public:main`. Set `main` as the GitHub default branch. Consider enabling private vulnerability reporting, secret scanning and branch protection.
-
-No GitHub remote is configured here; publication itself is an owner action. If any earlier history was already shared, removing it locally cannot revoke downloaded copies.
+- Review new files and commits for secrets, real SSE captures and unwanted author information. Never commit `.local-fixtures/` or Codex `auth.json`.
+- Run `make test` without a login; CI runs the same tests. Confirm the MIT copyright notice is correct.
+- Consider GitHub private vulnerability reporting, secret scanning and branch protection.

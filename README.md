@@ -20,16 +20,37 @@ There is no default keymap. Run `:checkhealth sapho` to check local dependencies
 
 ## Usage
 
-From a source buffer, `:Sapho` opens the floating chat directly, without Telescope. Use the optional mapping from Normal mode for the same behavior. From Visual mode, `:Sapho` or the mapping opens the chat with the selected text in an editable prompt. Neovim initially inserts the `'<,'>` range; Sapho remembers the visual invocation even if you remove it. Cancelling the command line discards the selection. A plain `:Sapho` after leaving Visual mode does not reuse old marks.
+### Open a chat
 
-Sapho opens a floating Markdown transcript and multiline prompt over the code (by default two-thirds of the available editor height; set `ui.height` to a number of rows to override, or `0` for automatic sizing). It uses Neovim's built-in Markdown syntax for common fenced languages (`lua`, `python`, `js`, `tsx`, and more), without requiring Treesitter. An isolated `sapho-markdown` filetype prevents external Markdown highlighters from overriding code colors. Markdown markup remains visible. Insert `<CR>` adds a newline; `<C-s>` sends; Normal `<CR>` sends; `<C-c>` cancels the active request. Press Normal `q` in either Sapho window or run `:SaphoToggle` to hide the chat; from the source buffer, `:SaphoToggle` reopens it. Both floating windows show a working/reading/responding indicator while a request is active, plus a completion or cancellation state; it updates when you reopen the chat. Routine bracketed activity lines in the transcript use a subdued `Comment` color; failures, scope notices and location hints remain prominent. Hiding preserves the draft, transcript, and in-flight request, so you can keep reading code while the answer streams. `:Sapho` also reopens it directly. `:SaphoNew` starts over, `:SaphoLocations` lets you jump to an LSP location from the source window, and `:SaphoCancel` / `:SaphoPause` control the active request. `require('sapho').ask()` opens the prompt directly without a picker. Selecting text never submits it automatically; existing unsent drafts are preserved.
+1. Open a source buffer and run `:Sapho` (or use your optional mapping). No Telescope picker is required.
+2. Edit the question in the floating prompt; nothing is sent until you submit it.
+3. Hide the chat with `q` to read code. From the same source buffer, `:Sapho` focuses it again; `:SaphoToggle` reopens it if hidden. The draft, transcript and in-flight request remain in memory.
 
-The model can request bounded read-only Neovim tools for the current unsaved buffer, diagnostics, definitions, references, document symbols, editor context, and cwd-confined repository files. Tools cannot apply edits, execute commands, or navigate. Wiping the source buffer retires its in-memory conversation. A selected excerpt is pinned to the question; later tool reads use the **current** buffer text.
+From Visual mode, `:Sapho` or the mapping adds the selected text to an editable question **without submitting**. It preserves existing unsent drafts. A selection is pinned to that question; later tool reads see the *current* buffer. Neovim's `'<,'>` range is handled even if you delete it from the command line. Cancelling the command line discards the selection, and a later Normal-mode `:Sapho` will not reuse old marks.
 
-**Privacy:** Prompts, selected code, conversation history, and tool results are sent to the Codex backend when you submit. Repository reads can include unsaved changes. Keep secrets out of prompts and source buffers you do not want sent to the provider. Sapho sets `store=false` on requests, but cannot control the provider's retention policy. It does not log in or store credentials; it reads the Codex CLI auth file and sends authorization headers via curl's stdin, not command-line arguments.
+### Keyboard and commands
+
+| Where | Key | Action |
+| --- | --- | --- |
+| Input, Insert mode | `<CR>` / `<C-s>` | Newline / send |
+| Input, Normal mode | `<CR>` | Send |
+| Either Sapho window, Normal mode | `q` | Hide the chat |
+| Either Sapho window | `<C-c>` | Cancel the active request |
+| Input, Normal mode | `<C-w>w` | Move to the transcript |
+| Transcript, Normal mode | `<C-w>W` | Return to the input |
+
+`:SaphoNew` starts a new conversation. `:SaphoCancel` and `:SaphoPause` control the active request. `:SaphoLocations` opens a Telescope picker for LSP locations; choosing one jumps from the source window. You can also call `require('sapho').ask()` to open the prompt directly.
+
+### Transcript and context
+
+The floating Markdown transcript defaults to two-thirds of the available editor height (`ui.height = 0`); set `ui.height` to a row count to override it. Neovim's built-in syntax highlights common fenced code languages without Treesitter. Markdown markup stays visible. Activity indicators appear in both windows; routine bracketed messages are dimmed, while failures, scope notices and location hints remain prominent.
+
+Sapho can request bounded **read-only** tools for unsaved buffer text, diagnostics, definitions, references, document symbols, editor context and cwd-confined repository files. Tools cannot edit, run commands or navigate. Wiping the source buffer retires its in-memory conversation.
+
+**Privacy:** Submitting sends the prompt, selected code, conversation history and tool results to the Codex backend. Repository reads may include unsaved changes; do not include secrets you want to keep private. Sapho sets `store=false`, but cannot control provider retention. It reads Codex CLI credentials without storing them and passes authorization headers to curl via stdin, not command-line arguments.
 
 ## Development
 
-Run `make test` for offline tests (requires [plenary.nvim](https://github.com/nvim-lua/plenary.nvim); the test setup uses an installed copy or clones one into the ignored `.tests/` directory). Tests do not require a login or make backend requests. Checked-in SSE fixtures are synthetic; `scripts/capture_fixture.sh` is for manual debugging and writes real responses only to ignored `.local-fixtures/`. **Never commit live captures.** See `specs/reading-ux.md` for historical design notes and [PUBLICATION.md](PUBLICATION.md) for safe GitHub publishing from the clean `public` branch (not the local historical `master`).
+Run `make test` for offline tests (requires [plenary.nvim](https://github.com/nvim-lua/plenary.nvim); the test setup uses an installed copy or clones one into the ignored `.tests/` directory). Tests do not require a login or make backend requests. Checked-in SSE fixtures are synthetic; `scripts/capture_fixture.sh` is for manual debugging and writes real responses only to ignored `.local-fixtures/`. **Never commit live captures.** See `specs/reading-ux.md` for historical design notes and [PUBLICATION.md](PUBLICATION.md) for GitHub publication precautions.
 
 Licensed under the [MIT License](LICENSE).
