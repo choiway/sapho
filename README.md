@@ -1,6 +1,6 @@
 # Sapho
 
-Read code beside your editor: a reading-first Neovim plugin for asking questions about the current source buffer with a Codex CLI ChatGPT login. Sapho is an independent project; it uses an unofficial ChatGPT Codex backend endpoint, which may change without notice. It does not support API-key mode or refresh tokens itself.
+Explore the code you're reading without leaving Neovim: Sapho lets you ask questions about your current buffer using your Codex CLI ChatGPT login. Sapho is an independent project; it uses an unofficial ChatGPT Codex backend endpoint, which may change without notice. It does not support API-key mode or refresh tokens itself.
 
 ## Installation
 
