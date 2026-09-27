@@ -38,6 +38,8 @@ From Visual mode, `:Sapho` or the mapping adds the selected text to an editable 
 
 ### Keyboard and commands
 
+The input box's border is muted (`Comment`) in Normal mode and highlighted (`DiagnosticOk`) in Insert mode; Replace mode uses `DiagnosticWarn`. The transcript border stays muted. Press `i` to edit and `<Esc>` to return to Normal mode.
+
 | Where | Key | Action |
 | --- | --- | --- |
 | Input, Insert mode | `<CR>` / `<C-s>` | Newline / send |
@@ -51,7 +53,7 @@ From Visual mode, `:Sapho` or the mapping adds the selected text to an editable 
 
 ### Transcript and context
 
-The floating Markdown transcript defaults to two-thirds of the available editor height (`ui.height = 0`); set `ui.height` to a row count to override it. Neovim's built-in syntax highlights common fenced code languages without Treesitter. Markdown markup stays visible. Activity indicators appear in both windows; routine bracketed messages are dimmed, while failures, scope notices and location hints remain prominent.
+The floating Markdown transcript and input together default to 80% of the screen height, clamped to available space (`ui.height = 0`); set `ui.height` to a row count to override it. Neovim's built-in syntax highlights common fenced code languages without Treesitter. Markdown markup stays visible. Activity indicators appear in the transcript header, with a highlighted animated spinner while a request is working, responding or reading (`SaphoSpinner` links to `DiagnosticInfo` by default); the input box has no header. Routine bracketed messages are dimmed, while failures, scope notices and location hints remain prominent.
 
 Sapho can request bounded **read-only** tools for unsaved buffer text, diagnostics, definitions, references, document symbols, editor context and cwd-confined repository files. Tools cannot edit, run commands or navigate. Wiping the source buffer retires its in-memory conversation.
 

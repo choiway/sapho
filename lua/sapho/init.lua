@@ -4,6 +4,20 @@ local Session = require('sapho.session')
 local Chat = require('sapho.ui.chat')
 local Picker = require('sapho.ui.picker')
 local M, states = {}, {}
+local function ui_highlights()
+  for name, target in pairs({
+    SaphoInputBorderNormal = 'Comment',
+    SaphoInputBorderInsert = 'DiagnosticOk',
+    SaphoInputBorderReplace = 'DiagnosticWarn',
+    SaphoTranscriptBorder = 'Comment',
+    SaphoSpinner = 'DiagnosticInfo',
+  }) do
+    vim.api.nvim_set_hl(0, name, { link = target, default = true })
+  end
+end
+ui_highlights()
+local highlight_group = vim.api.nvim_create_augroup('sapho.input_border', { clear = true })
+vim.api.nvim_create_autocmd('ColorScheme', { group = highlight_group, callback = ui_highlights })
 local function safe_label(text)
   return tostring(text or ''):gsub('[%c]', ' '):sub(1, 180)
 end
@@ -19,25 +33,68 @@ local function scratch(name, readonly)
   end
   return buf
 end
+local spinner_frames = { '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏' }
 local function header(state)
   local ctx = state.source
+  local activity = state.activity or 'Ready'
+  if state.spinner then
+    activity = activity:gsub('^●', function()
+      return '%#SaphoSpinner#' .. spinner_frames[state.spinner_frame] .. '%*'
+    end)
+  end
   local range = ctx.selection_info and (' | selection lines ' .. ctx.selection_info.first .. '–' .. ctx.selection_info.last ..
     (ctx.selection_info.truncated and ' (truncated)' or ' (pinned at invocation)')) or ''
   local prior = #state.session.history > 0 and ' | continuing conversation' or ' | new conversation'
   local path = safe_label(ctx.path):gsub('%%', '%%%%')
-  return ' Sapho [' .. (state.activity or 'Ready') .. '] · ' .. path .. range .. prior ..
+  -- Keep the activity visible even when the source path or hints exceed the float width.
+  return '[' .. activity .. '] Sapho%< · ' .. path .. range .. prior ..
     ' | Ctrl-S send · Ctrl-C cancel '
 end
 local function visible(win)
   return win and vim.api.nvim_win_is_valid(win)
 end
+local function render_activity(state)
+  if visible(state.chat_win) then vim.wo[state.chat_win].winbar = header(state) end
+end
+local function stop_spinner(state)
+  if not state.spinner then return end
+  state.spinner:stop()
+  state.spinner:close()
+  state.spinner = nil
+end
 local function set_activity(state, label)
   state.activity = label
-  for _, win in ipairs({ state.input_win, state.chat_win }) do
-    if visible(win) then vim.wo[win].winbar = header(state) end
+  if state.busy and label:match('^●') and visible(state.input_win) and visible(state.chat_win) then
+    if not state.spinner then
+      local timer = assert(vim.uv.new_timer())
+      state.spinner, state.spinner_frame = timer, 1
+      timer:start(120, 120, vim.schedule_wrap(function()
+        if state.spinner ~= timer then return end
+        state.spinner_frame = state.spinner_frame % #spinner_frames + 1
+        render_activity(state)
+      end))
+    end
+  else
+    stop_spinner(state)
   end
+  render_activity(state)
+end
+local function set_border(win, group)
+  if not visible(win) then return end
+  local items = {}
+  for item in vim.wo[win].winhighlight:gmatch('[^,]+') do
+    if not item:match('^FloatBorder:') then items[#items + 1] = item end
+  end
+  items[#items + 1] = 'FloatBorder:' .. group
+  vim.wo[win].winhighlight = table.concat(items, ',')
+end
+local function update_input_mode(state, mode)
+  local group = mode:match('^i') and 'SaphoInputBorderInsert' or
+    mode:match('^R') and 'SaphoInputBorderReplace' or 'SaphoInputBorderNormal'
+  set_border(state.input_win, group)
 end
 local function hide(state)
+  stop_spinner(state)
   state.hiding = true
   for _, win in ipairs({ state.input_win, state.chat_win }) do
     if visible(win) then vim.api.nvim_win_close(win, true) end
@@ -54,14 +111,15 @@ local function show(state)
     vim.notify('Sapho: source buffer is unavailable', vim.log.levels.ERROR); return
   end
   if visible(state.input_win) and visible(state.chat_win) then
-    set_activity(state, state.activity or 'Ready')
     vim.api.nvim_set_current_win(state.input_win)
+    update_input_mode(state, vim.api.nvim_get_mode().mode)
+    set_activity(state, state.activity or 'Ready')
     return
   end
   local ui = config.get().ui
   local width = math.min(math.max(20, math.floor(ui.width)), math.max(1, vim.o.columns - 4))
   local available = math.max(6, vim.o.lines - vim.o.cmdheight - 4)
-  local target_height = ui.height == 0 and math.floor(available * 2 / 3) or ui.height
+  local target_height = ui.height == 0 and math.floor(vim.o.lines * 0.8) or ui.height
   local height = math.min(math.max(8, math.floor(target_height)), available)
   local input_height = math.min(5, math.max(2, height - 5))
   local chat_height = math.max(1, height - input_height - 2)
@@ -75,7 +133,10 @@ local function show(state)
     vim.tbl_extend('force', opts, { row = row + chat_height + 2, height = input_height }))
   vim.wo[state.chat_win].wrap = true
   vim.wo[state.chat_win].conceallevel = 0 -- never hide model text or code fences
+  set_border(state.chat_win, 'SaphoTranscriptBorder')
   vim.wo[state.input_win].wrap = true
+  vim.wo[state.input_win].winbar = '' -- keep the input box free of the transcript header
+  update_input_mode(state, vim.api.nvim_get_mode().mode)
   set_activity(state, state.activity or 'Ready')
 end
 local function new_state(ctx)
@@ -164,6 +225,16 @@ local function new_state(ctx)
     vim.schedule(function()
       if closed == state.input_win or closed == state.chat_win then hide(state) end
     end)
+  end })
+  state.mode_autocmd = vim.api.nvim_create_autocmd('ModeChanged', { callback = function()
+    if visible(state.input_win) and vim.api.nvim_get_current_win() == state.input_win then
+      update_input_mode(state, vim.v.event.new_mode)
+    end
+  end })
+  state.winenter_autocmd = vim.api.nvim_create_autocmd('WinEnter', { callback = function()
+    if visible(state.input_win) and vim.api.nvim_get_current_win() == state.input_win then
+      update_input_mode(state, vim.api.nvim_get_mode().mode)
+    end
   end })
   return state
 end
@@ -274,8 +345,11 @@ end
 local function retire(state)
   states[state.source.buf] = nil
   state.cancel()
+  stop_spinner(state)
   state.chat:close()
   vim.api.nvim_del_autocmd(state.winclosed_autocmd)
+  vim.api.nvim_del_autocmd(state.mode_autocmd)
+  vim.api.nvim_del_autocmd(state.winenter_autocmd)
   hide(state)
   for _, buf in ipairs({ state.chat_buf, state.input_buf }) do
     if vim.api.nvim_buf_is_valid(buf) then vim.schedule(function()

@@ -9,7 +9,7 @@ M.defaults = {
   keymap = nil, -- opt-in mapping to open the chat
   ui = {
     width = 80, -- floating chat width in columns
-    height = 0, -- 0: two-thirds of available editor height; otherwise rows
+    height = 0, -- 0: 80% of screen height (clamped to available space); otherwise rows
   },
 }
 

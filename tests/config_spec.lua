@@ -9,7 +9,7 @@ describe('sapho reading configuration', function()
   end)
   it('validates provider and layout options', function()
     assert.has_error(function() config.setup({ effort = 'unknown' }) end)
-    assert.are.equal(0, config.setup({}).ui.height) -- automatic two-thirds height
+    assert.are.equal(0, config.setup({}).ui.height) -- automatic 80% screen height
     assert.are.equal(24, config.setup({ ui = { height = 24 } }).ui.height)
     assert.has_error(function() config.setup({ ui = { width = 0 } }) end)
     assert.has_error(function() config.setup({ ui = { height = -1 } }) end)
