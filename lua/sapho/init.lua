@@ -140,7 +140,7 @@ local function show(state)
   set_activity(state, state.activity or 'Ready')
 end
 local function new_state(ctx)
-  local state = { source = ctx, session = Session.new(), busy = false, locations = {}, activity = 'Ready' }
+  local state = { source = ctx, session = Session.new(), busy = false, locations = {}, activity = 'Ready', request_id = 0 }
   state.chat_buf = scratch('sapho://chat/' .. ctx.buf, true)
   state.input_buf = scratch('sapho://input/' .. ctx.buf, false)
   state.chat = Chat.new(state.chat_buf)
@@ -156,6 +156,8 @@ local function new_state(ctx)
       return
     end
     state.busy = true; state.draft = lines; state.locations = {}
+    state.request_id = state.request_id + 1
+    local request_id = state.request_id
     set_activity(state, '● Working')
     vim.api.nvim_buf_set_lines(state.input_buf, 0, -1, false, { '' })
     state.chat:line('## You · ' .. safe_label(state.source.path) .. ' (changedtick ' .. vim.api.nvim_buf_get_changedtick(state.source.buf) .. ')')
@@ -164,7 +166,7 @@ local function new_state(ctx)
     local live = Context.live(state.source)
     local agent = M._agent or require('sapho.agent')
     local handle = agent.start(state.session, prompt, live, function(ev)
-      if not state.busy then return end
+      if not state.busy or state.request_id ~= request_id then return end
       if ev.type == 'response.output_text.delta' then
         set_activity(state, '● Responding')
         state.chat:delta('text', ev.delta)
@@ -199,6 +201,7 @@ local function new_state(ctx)
         end
       end
     end, function(result, err)
+      if state.request_id ~= request_id then return end
       state.busy = false; state.handle = nil
       set_activity(state, err and (err == 'cancelled' and '× Cancelled' or '× Error') or '✓ Done')
       state.chat:end_block()
@@ -216,6 +219,8 @@ local function new_state(ctx)
   vim.keymap.set('i', '<C-s>', function() vim.cmd('stopinsert'); vim.schedule(state.submit) end,
     { buffer = state.input_buf, silent = true })
   for _, buf in ipairs({ state.input_buf, state.chat_buf }) do
+    vim.keymap.set({ 'n', 'i' }, '<C-n>', function() M.action('new') end,
+      { buffer = buf, silent = true, desc = 'Start a new Sapho conversation' })
     vim.keymap.set({ 'n', 'i' }, '<C-c>', state.cancel, { buffer = buf, silent = true })
     vim.keymap.set('n', 'q', function() hide(state) end, { buffer = buf, silent = true, desc = 'Hide Sapho' })
   end
@@ -330,10 +335,14 @@ function M.action(kind)
     if #state.locations == 0 then vim.notify('Sapho: no locations yet', vim.log.levels.INFO)
     else Picker.locations(state.locations, state.source.win) end
   elseif kind == 'new' then
-    state.cancel(); state.session = Session.new(); state.locations = {}
+    state.request_id = state.request_id + 1 -- ignore late events from the old request
+    state.cancel()
+    state.busy, state.handle, state.draft = false, nil, nil
+    state.session = Session.new(); state.locations = {}
     set_activity(state, 'Ready')
     vim.api.nvim_buf_set_lines(state.input_buf, 0, -1, false, { '' })
-    state.chat:line('[New conversation · ' .. safe_label(state.source.path) .. ']')
+    state.chat:clear()
+    if visible(state.input_win) then vim.api.nvim_set_current_win(state.input_win) end
   elseif kind == 'pause' then
     if state.handle then
       if state.handle.status() == 'paused' then

@@ -103,6 +103,14 @@ function M.new(buf)
     if self.timer then self.timer:stop(); self.timer:close(); self.timer = nil end
     self.pending = ''
   end
+  function self:clear()
+    self:close() -- discard any pending stream instead of flushing it into the new conversation
+    self.block = nil
+    change(function()
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { '' })
+      vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+    end)
+  end
   return self
 end
 return M

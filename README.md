@@ -45,11 +45,12 @@ The input box's border is muted (`Comment`) in Normal mode and highlighted (`Dia
 | Input, Insert mode | `<CR>` / `<C-s>` | Newline / send |
 | Input, Normal mode | `<CR>` | Send |
 | Either Sapho window, Normal mode | `q` | Hide the chat |
+| Either Sapho window, Normal or Insert mode | `<C-n>` | Start a new conversation (clear prior model context) |
 | Either Sapho window | `<C-c>` | Cancel the active request |
 | Input, Normal mode | `<C-w>w` | Move to the transcript |
 | Transcript, Normal mode | `<C-w>W` | Return to the input |
 
-`:SaphoNew` starts a new conversation. `:SaphoCancel` and `:SaphoPause` control the active request. `:SaphoLocations` opens a Telescope picker for LSP locations; choosing one jumps from the source window. You can also call `require('sapho').ask()` to open the prompt directly.
+`:SaphoNew` also starts a new conversation. It cancels any active request, clears the input and transcript buffers, and starts a fresh session, so previous turns are not sent to the model. `:SaphoCancel` and `:SaphoPause` control the active request. `:SaphoLocations` opens a Telescope picker for LSP locations; choosing one jumps from the source window. You can also call `require('sapho').ask()` to open the prompt directly.
 
 ### Transcript and context
 

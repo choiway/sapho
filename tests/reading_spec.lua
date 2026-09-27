@@ -270,6 +270,61 @@ describe('sapho reading UX', function()
     fail(nil, 'backend unavailable')
     assert.matches('[× Error]', vim.wo[chat_win].winbar, 1, true)
   end)
+  it('starts a fresh model session with Ctrl-N in the input, including Insert mode', function()
+    local sapho = require('sapho')
+    local calls = {}
+    sapho._provider = { start = function(input, _, done)
+      calls[#calls + 1] = { input = vim.deepcopy(input), done = done }
+      return { cancel = function() end }
+    end }
+    sapho.ask()
+    local input_buf = vim.api.nvim_get_current_buf()
+    local chat_win = vim.fn.bufwinid('sapho://chat/' .. buf)
+    vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'old question' })
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<CR>', true, false, true), 'xt', false)
+    calls[1].done({ output = { { type = 'message', role = 'assistant',
+      content = { { type = 'output_text', text = 'old answer' } } } } })
+    vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'discard this draft' })
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('i<C-n><Esc>', true, false, true), 'xt', false)
+    assert.same({ '' }, vim.api.nvim_buf_get_lines(input_buf, 0, -1, false))
+    assert.matches('[Ready] Sapho', vim.wo[chat_win].winbar, 1, true)
+    assert.same({ '' }, vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(chat_win), 0, -1, false))
+    vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'fresh question' })
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<CR>', true, false, true), 'xt', false)
+    assert.are.equal(2, #calls)
+    assert.same({ { role = 'user', content = 'fresh question' } }, calls[2].input)
+  end)
+  it('cancels the old request with Ctrl-N from the transcript and ignores late callbacks', function()
+    local sapho = require('sapho')
+    local calls = {}
+    sapho._provider = { start = function(input, event, done)
+      local call = { input = vim.deepcopy(input), event = event, done = done, cancelled = 0 }
+      calls[#calls + 1] = call
+      return { cancel = function() call.cancelled = call.cancelled + 1 end }
+    end }
+    sapho.ask()
+    local input_buf = vim.api.nvim_get_current_buf()
+    local chat_win = vim.fn.bufwinid('sapho://chat/' .. buf)
+    vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'old question' })
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<CR>', true, false, true), 'xt', false)
+    calls[1].event({ type = 'response.output_text.delta', delta = 'partially streamed text' })
+    vim.api.nvim_set_current_win(chat_win)
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-n>', true, false, true), 'xt', false)
+    assert.are.equal(1, calls[1].cancelled)
+    assert.are.equal(input_buf, vim.api.nvim_get_current_buf())
+    local chat_buf = vim.api.nvim_win_get_buf(chat_win)
+    local before = vim.api.nvim_buf_get_lines(chat_buf, 0, -1, false)
+    assert.same({ '' }, before)
+    vim.wait(100) -- a queued stream flush must not restore the old text
+    assert.same({ '' }, vim.api.nvim_buf_get_lines(chat_buf, 0, -1, false))
+    calls[1].event({ type = 'response.output_text.delta', delta = 'late text' })
+    calls[1].done(nil, 'cancelled')
+    assert.same(before, vim.api.nvim_buf_get_lines(chat_buf, 0, -1, false))
+    assert.matches('[Ready] Sapho', vim.wo[chat_win].winbar, 1, true)
+    vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { 'fresh question' })
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<CR>', true, false, true), 'xt', false)
+    assert.same({ { role = 'user', content = 'fresh question' } }, calls[2].input)
+  end)
   it('opens the chat directly from normal and visual mappings without submitting', function()
     local sapho = require('sapho')
     local requests = 0
