@@ -52,13 +52,29 @@ The input box's border is muted (`Comment`) in Normal mode and highlighted (`Dia
 
 `:SaphoNew` also starts a new conversation. It cancels any active request, clears the input and transcript buffers, and starts a fresh session, so previous turns are not sent to the model. `:SaphoCancel` and `:SaphoPause` control the active request. `:SaphoLocations` opens a Telescope picker for LSP locations; choosing one jumps from the source window. You can also call `require('sapho').ask()` to open the prompt directly.
 
-### Transcript and context
+### Context and privacy
 
-The floating Markdown transcript and input together default to 80% of the screen height, clamped to available space (`ui.height = 0`); set `ui.height` to a row count to override it. Neovim's built-in syntax highlights common fenced code languages without Treesitter. Markdown markup stays visible. Activity indicators appear in the transcript header, with a highlighted animated spinner while a request is working, responding or reading (`SaphoSpinner` links to `DiagnosticInfo` by default); the input box has no header. Routine bracketed messages are dimmed, while failures, scope notices and location hints remain prominent.
+Sapho keeps a separate, in-memory conversation for each source buffer. When you open Sapho, the editable draft identifies the source buffer and cursor position and includes any Visual-mode selection you attached. While answering, Sapho may use read-only tools to inspect:
 
-Sapho can request bounded **read-only** tools for unsaved buffer text, diagnostics, definitions, references, document symbols, editor context and cwd-confined repository files. Tools cannot edit, run commands or navigate. Wiping the source buffer retires its in-memory conversation.
+- current text from open buffers, including unsaved changes;
+- LSP diagnostics, definitions, references and document symbols; and
+- bounded source files inside Neovim's current working directory.
 
-**Privacy:** Submitting sends the prompt, selected code, conversation history and tool results to the Codex backend. Repository reads may include unsaved changes; do not include secrets you want to keep private. Sapho sets `store=false`, but cannot control provider retention. It reads Codex CLI credentials without storing them and passes authorization headers to curl via stdin, not command-line arguments.
+These tools cannot edit files, run commands or move your cursor. Repository access excludes private paths and stays inside the working directory. Wiping the source buffer discards its conversation.
+
+> **Privacy:** Submitting sends your question, attached selection, conversation history and requested tool results to the Codex backend. Tool results may contain unsaved code. Do not submit secrets you want to keep private. Sapho sets `store=false`, but cannot control provider retention. It reads Codex CLI credentials without storing them and sends authorization headers to `curl` through stdin rather than command-line arguments.
+
+### Window size
+
+The chat is up to 80 columns wide by default, and its height adapts to the screen. To use fixed dimensions:
+
+```lua
+require('sapho').setup({
+  ui = { width = 100, height = 30 },
+})
+```
+
+`ui.width` is measured in columns and `ui.height` in rows. Leave `ui.height` at `0` to use the automatic height.
 
 ## Development
 
